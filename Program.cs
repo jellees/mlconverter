@@ -30,6 +30,9 @@ namespace mlconverter
             BinaryReader gba = new BinaryReader(File.Open(filePath, FileMode.Open));
             BinaryWriter mid = new BinaryWriter(File.Create(Path.GetDirectoryName(filePath) + "\\" + Path.GetFileNameWithoutExtension(filePath) + ".mid"));
 
+            // adjust bufferheight
+            Console.BufferHeight = (int)gba.BaseStream.Length / 2;
+
             // read header and shit
             int channelCount = countFlag(gba.ReadUInt16());
 
