@@ -20,18 +20,20 @@ namespace mlconverter
                 convert(filePath);
 
                 Console.WriteLine("Conversion complete...");
-
+                
                 Console.ReadKey();
+
+                Console.Clear();
             }
         }
 
         static void convert(string filePath)
         {
             BinaryReader gba = new BinaryReader(File.Open(filePath, FileMode.Open));
-            BinaryWriter mid = new BinaryWriter(File.Create(Path.GetDirectoryName(filePath) + "\\" + Path.GetFileNameWithoutExtension(filePath) + ".mid"));
+            BinaryWriter mid = new BinaryWriter(File.Create(AppDomain.CurrentDomain.BaseDirectory + Path.GetFileNameWithoutExtension(filePath) + ".mid"));
 
             // adjust bufferheight
-            Console.BufferHeight = (int)gba.BaseStream.Length / 2;
+            Console.BufferHeight = ((gba.BaseStream.Length / 2) < Int16.MaxValue -1) ? ((int)gba.BaseStream.Length / 2) : Int16.MaxValue - 1;
 
             // read header and shit
             int channelCount = countFlag(gba.ReadUInt16());
@@ -114,10 +116,9 @@ namespace mlconverter
                     {
                         rest += par;
                     }
-                    else if (status == 0)
+                    else if (status == 0) // special note command, the last byte is the length!!
                     {
-                        length += par;
-                        gba.BaseStream.Position++;
+                        length += gba.ReadByte();
                     }
                     else if (status == 0xF6)
                     {
