@@ -10,27 +10,62 @@ namespace mlconverter
     {
         static void Main(string[] args)
         {
+            int fileOffset = 0;
+            byte convertWay = 0;
+            
             string[] arguments = Environment.GetCommandLineArgs();
             if (arguments.Length > 1)
             {
                 string filePath = arguments[1];
-
                 Console.WriteLine("Path: " + arguments[1].ToString());
 
-                convert(filePath);
+                // prepare settings
+                if (arguments.Length > 2)
+                {
+                    if (arguments[2].StartsWith("-a"))
+                    {
+                        string[] content = arguments[2].Split('=');
+                        if (content[1] == "all") convertWay = 1;
+                        else fileOffset = Convert.ToInt32(content[1], 16);
+                    }
+                }
+                
+                // execute settings etc
+                if (convertWay == 0)
+                {
+                    convert(filePath, fileOffset);
+                }
+                else if (convertWay == 1)
+                {
+                    int[] musicAddresses = getAddresses(filePath);
+                    for (int i = 1; i < musicAddresses.Length; i++) 
+                    { 
+                        int current = (musicAddresses[i] << 8) >> 8;
+                        Console.WriteLine("Address: 0x" + current.ToString("X"));
+                        convert(filePath, current, i.ToString()); 
+                    }
+                    Console.Clear();
+                }
 
                 Console.WriteLine("Conversion complete...");
-                
                 Console.ReadKey();
-
                 Console.Clear();
+            }
+            else
+            {
+                Console.WriteLine("No file or file path");
             }
         }
 
-        static void convert(string filePath)
+        static void convert(string filePath, int startOffset, string addName = "")
         {
             BinaryReader gba = new BinaryReader(File.Open(filePath, FileMode.Open));
-            BinaryWriter mid = new BinaryWriter(File.Create(AppDomain.CurrentDomain.BaseDirectory + Path.GetFileNameWithoutExtension(filePath) + ".mid"));
+            BinaryWriter mid = new BinaryWriter(File.Create(AppDomain.CurrentDomain.BaseDirectory + Path.GetFileNameWithoutExtension(filePath) + addName + ".mid"));
+
+            bool noNoteExtend = true;
+            int tempo = 0;
+
+            gba.BaseStream.Position = startOffset;
 
             // adjust bufferheight
             Console.BufferHeight = ((gba.BaseStream.Length / 2) < Int16.MaxValue -1) ? ((int)gba.BaseStream.Length / 2) : Int16.MaxValue - 1;
@@ -63,7 +98,7 @@ namespace mlconverter
                 mid.Write(0x6B72544D);
                 int lengthPos = (int)mid.BaseStream.Position;   // this variable is used to jump back later to write the length of the track
                 mid.Write(0xFFFFFFFF);
-                gba.BaseStream.Position = channelPointers[i];
+                gba.BaseStream.Position = channelPointers[i] + startOffset;
 
                 uint rest = 0;
                 uint length = 0;
@@ -76,6 +111,8 @@ namespace mlconverter
 
                     if (status == 0xF9)         // tempo
                     {
+                        tempo = par;
+
                         Console.WriteLine("Tempo change: 0x" + par.ToString("X"));
                     }
                     else if (status == 0xF2)    // panning
@@ -96,9 +133,12 @@ namespace mlconverter
                     }
                     else if (status == 0xF1)    // volume
                     {
-                        volume = par / 2;
+                        if (noNoteExtend)
+                        {
+                            volume = par / 2;
 
-                        Console.WriteLine("Volume change: 0x" + par.ToString("X") + " (" + par.ToString() + ")");
+                            Console.WriteLine("Volume change: 0x" + par.ToString("X") + " (" + par.ToString() + ")");
+                        }
                     }
                     else if (status == 0xFF)    // end of track
                     {
@@ -119,10 +159,7 @@ namespace mlconverter
                     else if (status == 0) // special note command, the last byte is the length!!
                     {
                         length += gba.ReadByte();
-                    }
-                    else if (status == 0xF6)
-                    {
-                        rest += par;
+                        noNoteExtend = false;
                     }
                     else
                     {
@@ -148,6 +185,7 @@ namespace mlconverter
 
                         rest = 0;
                         length = 0;
+                        noNoteExtend = true;
                     }
                 }
 
@@ -158,10 +196,33 @@ namespace mlconverter
                 mid.BaseStream.Position = originalPos;
             }
 
-            
+            // go back and write tempo
+            mid.BaseStream.Position = 0x1A; // the tempo is written on a fixed place anyway
+            int time = 60000000 / tempo;
+            int test = time >> 16;
+            mid.Write(Convert.ToSByte(time >> 16));          // 
+            test = (time << 16) >> 24;
+            mid.Write(Convert.ToSByte((time << 16) >> 24));  // weird system to write out an int into 3 bytes
+            test = (time << 24) >> 24;
+            mid.Write(Convert.ToSByte((time << 24) >> 24));  //
+
             // close the streams
             gba.Close();
             mid.Close();
+        }
+
+        static int[] getAddresses(string filePath)
+        {
+            int[] musicAddresses = new int[51];
+            BinaryReader gba = new BinaryReader(File.Open(filePath, FileMode.Open));
+
+            gba.BaseStream.Position = 0x21CB70;
+
+            for (int i = 0; i < 51; i++) musicAddresses[i] = gba.ReadInt32();
+
+            gba.Close();
+
+            return musicAddresses;
         }
 
         static private int countFlag(ushort flag)
