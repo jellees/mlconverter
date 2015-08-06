@@ -10,8 +10,8 @@ namespace mlconverter
     {
         static void Main(string[] args)
         {
-            convertMlsM64("C:\\Users\\Jelle\\Desktop\\MLMTEST\\rom.gba", 0x19FF38);
-            /*
+            //convertMlsM64("C:\\Users\\----\\Desktop\\MLMTEST\\rom.gba", 0x19FF38);
+            
             int fileOffset = 0;
             byte convertWay = 0;
             
@@ -110,10 +110,10 @@ namespace mlconverter
             {
                 Console.WriteLine("No file or file path or command");
             }
-            /**/
+            /*
             Console.WriteLine("Conversion complete...");
             Console.ReadKey();
-            Console.Clear();
+            Console.Clear();*/
         }
 
         static void convertMlsMid(string filePath, int startOffset, string addName = "")
