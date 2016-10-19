@@ -51,7 +51,7 @@ namespace mlconverter
                         {
                             if (arguments[i].StartsWith("-a"))
                             {
-                                string[] content = arguments[2].Split('=');
+                                string[] content = arguments[i].Split('=');
                                 if (content[1] == "all") fileOffset = 0x7FFFFFFF;
                                 else fileOffset = Convert.ToInt32(content[1], 16);
                             }
@@ -184,6 +184,7 @@ namespace mlconverter
                     }
                     else if (status == 0xF0)    // instrument
                     {
+						//Reminder: Superstar Saga's instruments are sampled at 16000 Hz
                         mid.Write(Convert.ToByte(0));
                         mid.Write(Convert.ToByte(0xC0 + i));
                         mid.Write(par);
